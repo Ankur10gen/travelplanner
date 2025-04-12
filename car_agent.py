@@ -20,10 +20,12 @@ AGENT_CARD = {
         {
           "capabilityId": "searchCars",
           "description": "Finds available rental cars.",
+          "path": "/searchCars" # <<< ADDED
         },
         {
           "capabilityId": "bookCar",
           "description": "Books a specific rental car identified by carId.",
+          "path": "/bookCar" # <<< ADDED
         }
     ],
     "definitions": {
@@ -44,7 +46,7 @@ AGENT_CARD = {
           "properties": {
             "bookingId": { "type": "string" },
             "status": { "type": "string", "enum": ["Confirmed", "Pending", "Failed"] },
-            "message": { "type": "string", "nullable": True }
+            "message": { "type": "string", "nullable": true }
           }
         }
       }
@@ -65,21 +67,21 @@ def generate_mock_cars(location, car_type_query):
     """Generates a list of mock car rental options."""
     cars = []
     num_cars = random.randint(1, 5)
+    search_location = location or "Changi Airport" # Default location if missing
 
     for i in range(num_cars):
         make = random.choice(list(MOCK_CAR_MAKES_MODELS.keys()))
         model = random.choice(MOCK_CAR_MAKES_MODELS[make])
         car_id = f"CAR-{make[:3].upper()}-{random.randint(100, 999)}"
-        
-        # Assign a type, try to match query if provided
+
         assigned_type = random.choice(MOCK_CAR_TYPES)
         if car_type_query:
-            # Simple matching for mock
             for t in MOCK_CAR_TYPES:
-                 if t.lower() in car_type_query.lower():
+                 # Check if t exists and is not None before lowercasing
+                 if t and car_type_query and t.lower() in car_type_query.lower():
                       assigned_type = t
                       break
-        
+
         price_per_day = round(random.uniform(50.0, 250.0), 2)
         if assigned_type == "Luxury": price_per_day *= 1.5
         if assigned_type == "SUV": price_per_day *= 1.2
@@ -90,17 +92,19 @@ def generate_mock_cars(location, car_type_query):
             "make": make,
             "model": model,
             "type": assigned_type,
-            "location": location, # Assume cars are available at the requested pickup location
+            "location": search_location, # Assume cars are available at the requested pickup location
             "pricePerDay": round(price_per_day, 2),
             "currency": "SGD"
         })
-        
+
     # Filter if a specific type was requested and found
     if car_type_query:
-        filtered_cars = [c for c in cars if c['type'].lower() in car_type_query.lower()]
+        # Ensure car_type_query is not None before lowercasing
+        query_lower = car_type_query.lower() if car_type_query else ""
+        filtered_cars = [c for c in cars if c['type'] and query_lower in c['type'].lower()]
         if filtered_cars: # Return only matching types if any were found
              return filtered_cars
-             
+
     return cars
 
 
@@ -119,8 +123,8 @@ def search_cars():
         return jsonify({"error": "Invalid JSON payload"}), 400
 
     location = data.get('location')
-    pickup_date = data.get('pickupDate') # Not used in mock logic
-    dropoff_date = data.get('dropoffDate') # Not used in mock logic
+    pickup_date = data.get('pickupDate')
+    dropoff_date = data.get('dropoffDate')
     car_type = data.get('carType') # Optional
 
     if not all([location, pickup_date, dropoff_date]):
@@ -142,7 +146,7 @@ def book_car():
         return jsonify({"error": "Invalid JSON payload"}), 400
 
     car_id = data.get('carId')
-    driver_details = data.get('driverDetails') # Not used in mock
+    driver_details = data.get('driverDetails')
 
     if not car_id or not driver_details:
         return jsonify({"error": "Missing required parameters: carId, driverDetails"}), 400

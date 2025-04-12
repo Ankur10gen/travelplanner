@@ -20,10 +20,12 @@ AGENT_CARD = {
         {
           "capabilityId": "searchHotels",
           "description": "Finds available hotels based on criteria.",
+          "path": "/searchHotels" # <<< ADDED
         },
         {
           "capabilityId": "bookHotel",
           "description": "Books a specific hotel room identified by hotelId.",
+          "path": "/bookHotel" # <<< ADDED
         }
     ],
      "definitions": {
@@ -43,7 +45,7 @@ AGENT_CARD = {
           "properties": {
             "bookingId": { "type": "string" },
             "status": { "type": "string", "enum": ["Confirmed", "Pending", "Failed"] },
-            "message": { "type": "string", "nullable": True }
+            "message": { "type": "string", "nullable": true }
           }
         }
       }
@@ -58,9 +60,14 @@ def generate_mock_hotels(location_query, guests):
     """Generates a list of mock hotel options."""
     hotels = []
     # Simple simulation: return hotels in a related mock location or just random ones
-    relevant_location = location_query # In a real system, parse the query better
-    if "near" in location_query.lower():
-         relevant_location = location_query.split("near")[-1].strip()
+    relevant_location = location_query or random.choice(MOCK_LOCATIONS) # Use query or random if missing
+
+    # Ensure guests is valid
+    try:
+        num_guests = int(guests or 1)
+        if num_guests < 1: num_guests = 1
+    except (ValueError, TypeError):
+        num_guests = 1
 
     num_hotels = random.randint(1, 4)
 
@@ -68,7 +75,7 @@ def generate_mock_hotels(location_query, guests):
         hotel_name = random.choice(MOCK_HOTEL_NAMES)
         hotel_id = f"HTL-{random.randint(1000, 9999)}"
         rating = round(random.uniform(3.5, 5.0), 1)
-        price_per_night = round(random.uniform(120.0, 600.0) * (1 + (guests -1) * 0.2) , 2) # Price adjusts slightly for guests
+        price_per_night = round(random.uniform(120.0, 600.0) * (1 + (num_guests -1) * 0.2) , 2) # Price adjusts slightly for guests
         loc = random.choice(MOCK_LOCATIONS) # Keep it simple for mock
 
         hotels.append({
@@ -96,21 +103,15 @@ def search_hotels():
         return jsonify({"error": "Invalid JSON payload"}), 400
 
     location = data.get('location')
-    check_in_date = data.get('checkInDate') # Not used in mock logic, but required by spec
-    check_out_date = data.get('checkOutDate') # Not used in mock logic
+    check_in_date = data.get('checkInDate')
+    check_out_date = data.get('checkOutDate')
     guests = data.get('guests')
 
-    if not all([location, check_in_date, check_out_date, guests]):
-        return jsonify({"error": "Missing required parameters: location, checkInDate, checkOutDate, guests"}), 400
-    
-    try:
-        guests = int(guests)
-        if guests < 1:
-             raise ValueError("Guests must be at least 1")
-    except (ValueError, TypeError):
-         return jsonify({"error": "Invalid value for guests"}), 400
+    if not all([location, check_in_date, check_out_date]):
+        # Guests defaults to 1 in helper
+        return jsonify({"error": "Missing required parameters: location, checkInDate, checkOutDate"}), 400
 
-    print(f"[HotelAgent] Received hotel search: Location='{location}', Guests={guests}, Dates={check_in_date}-{check_out_date}")
+    print(f"[HotelAgent] Received hotel search: Location='{location}', Guests={guests or 1}, Dates={check_in_date}-{check_out_date}")
 
     # Generate mock results
     mock_hotels = generate_mock_hotels(location, guests)
@@ -126,7 +127,7 @@ def book_hotel():
         return jsonify({"error": "Invalid JSON payload"}), 400
 
     hotel_id = data.get('hotelId')
-    guest_details = data.get('guestDetails') # Not used in mock
+    guest_details = data.get('guestDetails')
 
     if not hotel_id or not guest_details:
         return jsonify({"error": "Missing required parameters: hotelId, guestDetails"}), 400
