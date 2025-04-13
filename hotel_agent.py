@@ -45,7 +45,7 @@ AGENT_CARD = {
           "properties": {
             "bookingId": { "type": "string" },
             "status": { "type": "string", "enum": ["Confirmed", "Pending", "Failed"] },
-            "message": { "type": "string", "nullable": true }
+            "message": { "type": "string", "nullable": True }
           }
         }
       }
